@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 
+// Question 1
 class Sensor 
 {
     public:
@@ -77,7 +78,6 @@ class PositionSensor : public Sensor
         }
 };
 
-// Factory class for creating sensors
 class SensorFactory
 {
     public:
@@ -94,7 +94,65 @@ class SensorFactory
     }
 };
 
+// Question 2
+class Robot 
+{
+    public:
+    int number;
+    int timeGrab;
+    int timeCompletetask;
+    int totaltime;
 
+    Robot(int _number, int _timeGrab, int _timeCompletetask)
+        : number(_number), timeGrab(_timeGrab), timeCompletetask(_timeCompletetask), totaltime(0) {}
+
+    void performTask()
+    {
+        std::cout << "Robot " << number << " is collectingn data." << std::endl;
+        std::cout << "Robot " << number << " acquired tools and starts performing a task." << std::endl;
+
+        totaltime += timeGrab + timeCompletetask + timeGrab; // timeGrab twice for grabbing and returning tools
+
+        std::cout << "Robot " << number << " finished the task and returning the tools." << std::endl;
+    }
+};
+
+class Arena
+{
+    private:
+    std::vector<Robot> robots;
+    int numRobots;
+
+    public:
+    Arena( int _numRobots, std::vector<int> timeGrab, std::vector<int> timeCompletetask)
+    : numRobots(_numRobots)
+    {
+        if (timeGrab.size() != _numRobots || timeCompletetask.size() != _numRobots)
+        { 
+            std::cerr << "Error: Mismatch in number of robots and provided times." << std::endl;
+            return;
+        }
+
+        for (int i = 0; i < _numRobots; ++i)
+        { robots.emplace_back(i + 1, timeGrab[i], timeCompletetask[i]); }
+    }
+
+    int simulateTasks() 
+    {
+        int totalTime = 0;
+        for (int i = 0; i < numRobots; ++i) { robots[i].performTask(); }
+        return totalTime;
+    }
+
+    int getTotalTime() const
+    {
+        int totalTime = 0;
+        for (int i = 0; i < numRobots; ++i)
+        { totalTime += robots[i].totaltime;}
+
+        return totalTime;
+    }
+};
 int main() 
 {
     /*
@@ -144,6 +202,17 @@ int main()
 
     // Monitoring and adjusting
     ctrlSys.monitorAndAdjust();
+
+
+    // Question 2
+    std::cout << "\n \n \nQUESTION 2: \n" << std::endl;
+    std::vector<int> timeToGrab = {1, 1, 1, 1, 1}; // Time for each robot to grab tools (1 second)
+    std::vector<int> timeToCompleteTask = {5, 5, 5, 5, 5}; // Time for each robot to complete task (5 seconds)
+
+    Arena arena(5, timeToGrab, timeToCompleteTask);
+    arena.simulateTasks();
+    int totalTime = arena.getTotalTime();
+    std::cout << "duration: " << totalTime << " seconds." << std::endl;
 
     return 0;
 }
