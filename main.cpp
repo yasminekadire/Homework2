@@ -1,6 +1,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <thread>
+#include <mutex>
+#include <algorithm>
+#include <memory>
 
 // Question 1
 class Sensor 
@@ -11,32 +15,13 @@ class Sensor
         virtual ~Sensor() {} // Virtual destructor
 };
 
-class AerospaceControlSystem 
-{
-    private:
-        std::vector<Sensor*> sensors;
-
-    public:
-        void addSensor(Sensor* sensor) {
-            sensors.push_back(sensor);
-        }
-
-        void monitorAndAdjust() {
-            for (Sensor* sensor : sensors) {
-                sensor->gatherData();
-                sensor->processData();
-                std::cout << "Adjusting controls based on sensor data." << std::endl;
-            }
-        }
-};
-
 class TemperatureSensor : public Sensor 
 {
     public:
         void gatherData() override 
         {
             // Simulate data gathering process for temperature sensor
-            std::cout << "Gathering data from Temperature Sensor." << std::endl;
+            std::cout << "\nGathering data from Temperature Sensor." << std::endl;
         }
 
         void processData() override 
@@ -94,105 +79,191 @@ class SensorFactory
     }
 };
 
-// Question 2
+class AerospaceControlSystem 
+{
+    private:
+        std::vector<Sensor*> sensors;
+
+    public:
+        void addSensor(Sensor* sensor) {
+            sensors.push_back(sensor);
+        }
+
+        void monitorAndAdjust() {
+            for (Sensor* sensor : sensors) {
+                sensor->gatherData();
+                sensor->processData();
+                std::cout << "Adjusting controls based on sensor data." << std::endl;
+            }
+        }
+};
+
+// Question 2 
+/*
 class Robot 
 {
-    public:
+public:
     int number;
-    int timeGrab;
     int timeCompletetask;
     int totaltime;
+    std::mutex* mutex0; 
+    std::mutex* mutex1; 
 
-    Robot(int _number, int _timeGrab, int _timeCompletetask)
-        : number(_number), timeGrab(_timeGrab), timeCompletetask(_timeCompletetask), totaltime(0) {}
+    Robot(int _number, std::mutex &tool0, std::mutex &tool1) // include mutex 1,2 
+        : number(_number), totaltime(0), mutex0(&tool0), mutex1(&tool1) {}
 
     void performTask()
     {
-        std::cout << "Robot " << number << " is collectingn data." << std::endl;
-        std::cout << "Robot " << number << " acquired tools and starts performing a task." << std::endl;
+        // std::lock_guard<std::mutex> lock(*mutex); use std::lock
+        std::lock(*mutex0, *mutex1);
 
-        totaltime += timeGrab + timeCompletetask + timeGrab; // timeGrab twice for grabbing and returning tools
+        std::cout << "Robot " << number << " starts performing a task." << std::endl;
+        totaltime += timeCompletetask;
+        std::cout << "Robot " << number << " finished the task." << std::endl;
 
+        // release locks
+        mutex0->unlock();
+        mutex1->unlock();
+    }
+};
+
+class Arena
+{
+private:
+    std::vector<std::mutex> tools;
+    std::vector<std::thread> tasks;
+    std::vector<Robot> robots;
+    int numRobots;
+
+public:
+    Arena(int _numRobots)
+        : tools(_numRobots), numRobots(_numRobots)
+       
+    {
+
+
+        for (int i = 0; i < _numRobots; ++i)
+        { 
+            robots.emplace_back(i + 1, tools[i], tools[(i+1)%5]); 
+        }
+    }
+
+    void simulateTasks() 
+    {
+        // create 5 mutex for tools. have robot constructor receive two mutex. create 5 strands
+        // use sleep_for for time to grab tools/complete tasks
+        std::vector<std::thread> threads;
+
+        // Create threads for each robot to perform tasks simultaneously
+        for (int i = 0; i < numRobots; ++i) {
+            std::thread t(&Robot::performTask, std::ref(robots[i]));
+            threads.push_back(t);
+        }
+
+        // Wait for all threads to finish
+        for (auto& thread : threads) {
+            thread.join();
+        }
+    }
+
+    int getTotalTime() const
+    {
+        int totalTime = 0;
+        for (const auto& robot : robots) {
+            totalTime = std::max(totalTime, robot.totaltime);
+        }
+        return totalTime;
+    }
+};
+
+
+// void PerformTask (int id) {
+// int leftChannel = id;
+// int rightChannel = (id + 1) % tools.size();
+// if (leftChannel > rightChannel) std::swap( leftChannel, rightChannel)
+// std::vector<std::mutex> tools;
+// std::lock( tools[leftChannel]. tools[rightChannel]);
+// std::lock_guard<std::mutex> leftLock ( tools[leftChannel], std::adopt_lock)
+// std::lock_guard<std::mutex> rightLock ( tools[rightChannel], std::adopt_lock)
+// std::cout << "Robot" << id<< "i s reaching and grabbing tools"
+// }
+
+*/
+
+class Robot
+{
+    public:
+        int number;
+        int timeCompletetask;
+        int totaltime;
+        std::mutex* mutex0; // tool 0
+        std::mutex* mutex1; // tool 1
+    
+        Robot(int _number, std::mutex &tool0, std::mutex &tool1)
+        : number(_number), totaltime(0), mutex0(&tool0), mutex1(&tool1) {}
+    
+    void performTask()
+    {
+
+        std::cout << "Robot " << number << " is starting the process." << std::endl; // added
+            
+        std::lock(*mutex0, *mutex1);
+        std::lock_guard<std::mutex> leftLock( *mutex0, std::adopt_lock );
+        std::lock_guard<std::mutex> rightLock( *mutex1, std::adopt_lock );
+        std::cout << "Robot " << number << " is reaching and grabbing the tools." << std::endl;
+        std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
+        std::this_thread::sleep_for( std::chrono::seconds( 5 ) );
         std::cout << "Robot " << number << " finished the task and returning the tools." << std::endl;
+
     }
 };
 
 class Arena
 {
     private:
-    std::vector<Robot> robots;
-    int numRobots;
-
+        std::vector<std::mutex> tools;
+        std::vector<std::thread> tasks;
+        std::vector<Robot> robots;
+        int numRobots;
+        std::chrono::steady_clock::time_point startTime;
+        std::chrono::steady_clock::time_point endTime;
+    
     public:
-    Arena( int _numRobots, std::vector<int> timeGrab, std::vector<int> timeCompletetask)
-    : numRobots(_numRobots)
+    Arena(int _numRobots)
+    : tools(_numRobots), numRobots(_numRobots)
     {
-        if (timeGrab.size() != _numRobots || timeCompletetask.size() != _numRobots)
-        { 
-            std::cerr << "Error: Mismatch in number of robots and provided times." << std::endl;
-            return;
-        }
-
         for (int i = 0; i < _numRobots; ++i)
-        { robots.emplace_back(i + 1, timeGrab[i], timeCompletetask[i]); }
+            { robots.emplace_back(i + 1, tools[i], tools[(i+1)%5]); }
     }
-
-    int simulateTasks() 
+    
+    void simulateTasks()
     {
-        int totalTime = 0;
-        for (int i = 0; i < numRobots; ++i) { robots[i].performTask(); }
-        return totalTime;
-    }
+        // Record the start time
+        startTime = std::chrono::steady_clock::now();
+        
+        // create 5 mutex for tools. have robot constructor receive two mutex. create 5 strands
+        // use sleep_for for time to grab tools/complete tasks
+        std::vector<std::thread> threads;
+        // Create threads for each robot to perform tasks simultaneously
+        for (int i = 0; i < numRobots; ++i) 
+        { threads.push_back(std::thread(&Robot::performTask, std::ref(robots[i]))); }
+        // Wait for all threads to finish
+        for (auto& thread : threads) { thread.join(); }
 
+        // Record the end time
+        endTime = std::chrono::steady_clock::now();
+    }
+    
     int getTotalTime() const
-    {
-        int totalTime = 0;
-        for (int i = 0; i < numRobots; ++i)
-        { totalTime += robots[i].totaltime;}
-
-        return totalTime;
+    { 
+        // Calculate the duration between start and end times
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime);
+        return duration.count(); // Return the total duration in seconds
     }
 };
 int main() 
 {
-    /*
-    TemperatureSensor tempSensor;
-    PressureSensor pressureSensor;
-    PositionSensor positionSensor;
-
-    tempSensor.gatherData();
-    tempSensor.processData();
-
-    pressureSensor.gatherData();
-    pressureSensor.processData();
-
-    positionSensor.gatherData();
-    positionSensor.processData();
-
-    Sensor* tempSensor = SensorFactory::createSensor("Temperature");
-    if (tempSensor) {
-        tempSensor->gatherData();
-        tempSensor->processData();
-        delete tempSensor;
-    }
-
-    Sensor* pressureSensor = SensorFactory::createSensor("Pressure");
-    if (pressureSensor) {
-        pressureSensor->gatherData();
-        pressureSensor->processData();
-        delete pressureSensor;
-    }
-
-    Sensor* positionSensor = SensorFactory::createSensor("Position");
-    if (positionSensor) {
-        positionSensor->gatherData();
-        positionSensor->processData();
-        delete pressureSensor;
-    }
-
-    return 0;
-    */
-
+   std::cout << "\n \n \nQUESTION 1: \n" << std::endl;
    AerospaceControlSystem ctrlSys;
 
     // Adding sensors
@@ -203,16 +274,17 @@ int main()
     // Monitoring and adjusting
     ctrlSys.monitorAndAdjust();
 
+    std::cout << "QUESTION 2: \n" << std::endl;
 
-    // Question 2
-    std::cout << "\n \n \nQUESTION 2: \n" << std::endl;
-    std::vector<int> timeToGrab = {1, 1, 1, 1, 1}; // Time for each robot to grab tools (1 second)
-    std::vector<int> timeToCompleteTask = {5, 5, 5, 5, 5}; // Time for each robot to complete task (5 seconds)
-
-    Arena arena(5, timeToGrab, timeToCompleteTask);
+    int numRobots = 5;
+    Arena arena(numRobots);
+    
+    // Simulate the tasks
     arena.simulateTasks();
+    
+    // Get the total time taken by all robots to finish their tasks
     int totalTime = arena.getTotalTime();
-    std::cout << "duration: " << totalTime << " seconds." << std::endl;
-
+    std::cout << "Total time taken by all robots: " << totalTime << " seconds" << std::endl;
+    
     return 0;
 }
