@@ -1,0 +1,8 @@
+From Question2, 
+what issues may happen if the robot that finished the task is assigned a new task immediately? 
+And what will be a potential solution for the issues?
+
+If the robot finishes the task and immediately starts a new task without putting down its tools, 
+the two robots surrounding the robot will never be able to start their tasks.
+The solution to this could be providing more tools for the robots. 
+To stop the robot from starting a new task immediately, you should add a condition to return the tools and not be the first robot to touch either tool again.
