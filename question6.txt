@@ -1,0 +1,13 @@
+From Question3, what issues you might obtain during the development of the program?
+What issues do you think will happen if some of the actions,
+e.g., waking up the ATC, checking the traffic pattern, entering the traffic
+pattern, diverging to another airport, etc., take time to finish? 
+And what will be a potential solution for the issues?
+
+
+While developing this program, there was a problem with having the runway full but eventually clearing out to receive more planes.
+I used a counter to add planes to the runway and subtract them some time afterwards to simulate the plane clearing the runway.
+This just led to adding and subtracting the same plane as it landed and never got to simulate a busy runway.
+If some of the actions were not instantaneous, the traffic pattern would take a very long time to clear and most airplanes would be redirected.
+Overall, the program would take a very long time to run through all 10 airplanes.
+A potential solution would be to allow more planes on the runway at once.
